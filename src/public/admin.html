@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Workshop Admin Switchboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #121212; color: #fff; padding: 20px; }
+        .card { background: #1e1e1e; padding: 20px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        h2 { color: #4CAF50; margin-top: 0; }
+        label { display: block; margin: 10px 0; font-size: 16px; }
+        input[type="range"] { width: 100%; margin-top: 5px; }
+        .status { font-weight: bold; color: #FF9800; }
+    </style>
+</head>
+<body>
+
+    <h1>🎮 Workshop Admin Switchboard</h1>
+    <p>Live controls for the lecture projector.</p>
+
+    <div class="card">
+        <h2>Block 1: Architecture</h2>
+        <label>
+            Authority Mode: 
+            <select id="authority" onchange="updateConfig()">
+                <option value="client">Client-Authoritative (Exploitable)</option>
+                <option value="server">Server-Authoritative (Secured)</option>
+            </select>
+        </label>
+    </div>
+
+    <div class="card">
+        <h2>Block 2: Latency & Network</h2>
+        <label>Artificial Latency (ms): <span id="latVal" class="status">0</span>ms</label>
+        <input type="range" id="latency" min="0" max="500" value="0" oninput="updateConfig()">
+
+        <label>Packet Loss (%): <span id="lossVal" class="status">0</span>%</label>
+        <input type="range" id="packetLoss" min="0" max="20" value="0" oninput="updateConfig()">
+        
+        <label><input type="checkbox" id="prediction" checked onchange="updateConfig()"> Client-Side Prediction</label>
+        <label><input type="checkbox" id="interpolation" checked onchange="updateConfig()"> Entity Interpolation</label>
+    </div>
+
+    <div class="card">
+        <h2>Block 4: Defenses & Detection</h2>
+        <label><input type="checkbox" id="botDetector" onchange="updateConfig()"> Enable Bot Detector (Rigid Input Check)</label>
+    </div>
+
+<script>
+async function updateConfig() {
+    const config = {
+        authority: document.getElementById('authority').value,
+        latency: parseInt(document.getElementById('latency').value),
+        packetLoss: parseInt(document.getElementById('packetLoss').value),
+        prediction: document.getElementById('prediction').checked,
+        interpolation: document.getElementById('interpolation').checked,
+        botDetector: document.getElementById('botDetector').checked
+    };
+
+    // Update UI labels
+    document.getElementById('latVal').innerText = config.latency;
+    document.getElementById('lossVal').innerText = config.packetLoss;
+
+    // Send to Node.js backend
+    await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config)
+    });
+}
+</script>
+</body>
+</html>
