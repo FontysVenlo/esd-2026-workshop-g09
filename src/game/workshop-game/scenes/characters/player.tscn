@@ -16,7 +16,6 @@ shader_parameter/border_thickness = 0.08
 
 [node name="Player" type="CharacterBody2D" unique_id=518307169]
 script = ExtResource("1_yewv4")
-offline_mode = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1909925579]
 shape = SubResource("CircleShape2D_g4v7s")
