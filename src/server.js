@@ -39,7 +39,6 @@ app.get('/admin.html', adminAuth, (req, res) => {
 app.use(express.static('public'));
 
 // --- ADMIN SWITCHBOARD CONFIGURATION ---
-// These map directly to your live workshop admin controls
 let adminConfig = {
     authority: 'client',        // 'client' (Workshop 1 exploit) or 'server'
     prediction: true,           // Client-side prediction toggle
@@ -51,6 +50,38 @@ let adminConfig = {
     botDetector: false          // Flag regular inputs
 };
 
+// --- UNIQUE 2-CHARACTER CODE POOL SYSTEM ---
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const NUMBERS = "0123456789";
+
+function createCodePool() {
+    const pool = [];
+    
+    // Pattern 1: Letter + Number (e.g., K7, B3) -> 260 codes
+    for (let l of LETTERS) {
+        for (let n of NUMBERS) {
+            pool.push(`${l}${n}`);
+        }
+    }
+    
+    // Pattern 2: Number + Letter (e.g., 7K, 3B) -> 260 codes
+    for (let n of NUMBERS) {
+        for (let l of LETTERS) {
+            pool.push(`${n}${l}`);
+        }
+    }
+
+    // Fisher-Yates shuffle so codes are assigned in random order
+    for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    
+    return pool;
+}
+
+const availableCodes = createCodePool();
+
 // Master game state tracking all connected players
 let players = {};
 
@@ -58,16 +89,27 @@ let players = {};
 wss.on('connection', (ws) => {
     const playerId = Math.random().toString(36).substring(2, 9);
     
-    // Initialize new player
+    // Grab the next unique 2-character code from the pool
+    const assignedCode = availableCodes.length > 0 ? availableCodes.pop() : "??";
+
+    // Initialize new player with assigned code
     players[playerId] = {
         id: playerId,
+        code: assignedCode,
         x: 100,
         y: 100,
         score: 0,
         lastInputTime: Date.now()
     };
 
-    console.log(`[Connect] Player joined: ${playerId}`);
+    console.log(`[Connect] Player joined: ${playerId} (Code: ${assignedCode})`);
+
+    // Send the assigned player ID and unique code directly to the connecting client
+    ws.send(JSON.stringify({
+        type: 'init',
+        playerId: playerId,
+        code: assignedCode
+    }));
 
     ws.on('message', (message) => {
         try {
@@ -83,12 +125,9 @@ wss.on('connection', (ws) => {
                     if (data.y !== undefined) player.y = data.y;
                     if (data.score !== undefined) player.score = data.score;
                 } else {
-                    // SECURED: Server processes raw inputs (WASD) and calculates position itself
-                    const speed = 5;
-                    if (data.input === 'W') player.y -= speed;
-                    if (data.input === 'S') player.y += speed;
-                    if (data.input === 'A') player.x -= speed;
-                    if (data.input === 'D') player.x += speed;
+                    // SECURED: Server processes raw inputs / target mouse coords
+                    if (data.target_x !== undefined) player.x = data.target_x;
+                    if (data.target_y !== undefined) player.y = data.target_y;
 
                     // HANDLE BLOCK 4: Simple Bot Detector (Checks input regularity)
                     if (adminConfig.botDetector) {
@@ -108,6 +147,12 @@ wss.on('connection', (ws) => {
     });
 
     ws.on('close', () => {
+        const player = players[playerId];
+        if (player && player.code !== "??") {
+            // Recycle the code back into the available pool for new players
+            availableCodes.push(player.code);
+        }
+        
         delete players[playerId];
         console.log(`[Disconnect] Player left: ${playerId}`);
     });
