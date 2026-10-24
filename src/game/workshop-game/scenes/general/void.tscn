@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://dsku6jonocnq4"]
+
+[ext_resource type="Shader" uid="uid://igs2mbcspy5m" path="res://scripts/shaders/void_background_shader.gdshader" id="1_a8u78"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_g4v7s"]
+shader = ExtResource("1_a8u78")
+shader_parameter/void_color = Color(0.0720711, 0, 0.015618881, 1)
+shader_parameter/glow_color = Color(0.13333334, 0.92156863, 0.9529412, 1)
+shader_parameter/speed = 0.5
+
+[node name="Void" type="ColorRect" unique_id=976362442]
+z_index = -101
+material = SubResource("ShaderMaterial_g4v7s")
+custom_minimum_size = Vector2(5000, 5000)
+offset_right = 12968.0
+offset_bottom = 8925.0

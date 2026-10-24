@@ -9,6 +9,12 @@ shader_parameter/line_color = Color(0.5211406, 0.5211406, 0.5211405, 1)
 shader_parameter/grid_size = 64.0
 shader_parameter/line_thickness = 2.0
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_g4v7s"]
+size = Vector2(20, 4000)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_yf5fn"]
+size = Vector2(4000, 20)
+
 [node name="Background" type="ColorRect" unique_id=1234137971]
 z_index = -100
 material = SubResource("ShaderMaterial_g4v7s")
@@ -18,3 +24,21 @@ offset_top = -2000.0
 offset_right = 2000.0
 offset_bottom = 2000.0
 mouse_filter = 2
+
+[node name="MapBorders" type="StaticBody2D" parent="." unique_id=1724571460]
+
+[node name="LeftWallBorder" type="CollisionShape2D" parent="MapBorders" unique_id=1423506536]
+position = Vector2(-10, 2000)
+shape = SubResource("RectangleShape2D_g4v7s")
+
+[node name="RightWallBorder" type="CollisionShape2D" parent="MapBorders" unique_id=2097245718]
+position = Vector2(4010, 2000)
+shape = SubResource("RectangleShape2D_g4v7s")
+
+[node name="TopWallBorder" type="CollisionShape2D" parent="MapBorders" unique_id=1690537759]
+position = Vector2(2000, -10)
+shape = SubResource("RectangleShape2D_yf5fn")
+
+[node name="BottomWallBorder" type="CollisionShape2D" parent="MapBorders" unique_id=1725655245]
+position = Vector2(2000, 4010)
+shape = SubResource("RectangleShape2D_yf5fn")

@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://cigmi0gpfg564" path="res://scripts/players/player.gd" id="1_yewv4"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_g4v7s"]
+radius = 34.0147
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_57qmd"]
 shader = ExtResource("1_rp718")

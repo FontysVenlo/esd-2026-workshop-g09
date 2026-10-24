@@ -10,16 +10,22 @@ extends CharacterBody2D
 var player_id: String = ""
 var score: int = 10
 
-func _process(delta: float) -> void:
+func _physics_process(_delta: float) -> void:
 	if not is_local_player:
 		return
 
 	var dir := get_local_mouse_position()
 
+	# Offline mode OR Client-Authoritative mode runs movement locally
 	if offline_mode or NetworkManager.admin_config.authority == "client":
 		if dir.length() > 10.0:
-			global_position += dir.normalized() * move_speed * delta
-			
+			velocity = dir.normalized() * move_speed
+		else:
+			velocity = Vector2.ZERO
+
+		# move_and_slide() handles wall collisions and velocity application automatically
+		move_and_slide()
+
 		# Only transmit packets if live server connection is active
 		if not offline_mode and NetworkManager.is_server_connected:
 			NetworkManager.send_data({
@@ -28,7 +34,7 @@ func _process(delta: float) -> void:
 				"y": global_position.y,
 				"score": score
 			})
-		
+
 	else:
 		# --- BLOCK 1 (SECURED): Send target coordinates to Node.js backend ---
 		var target_world_pos := global_position + dir
@@ -41,14 +47,14 @@ func _process(delta: float) -> void:
 func update_from_server(data: Dictionary) -> void:
 	if offline_mode:
 		return
-		
+
 	if NetworkManager.admin_config.authority == "server" or not is_local_player:
 		var target_pos := Vector2(data.x, data.y)
-		
+
 		if NetworkManager.admin_config.interpolation:
 			global_position = global_position.lerp(target_pos, 0.3)
 		else:
 			global_position = target_pos # Hard snap for testing rubberbanding
-			
+
 	if data.has("score"):
 		score = data.score
