@@ -6,7 +6,6 @@ extends CharacterBody2D
 
 @onready var mesh: MeshInstance2D = $MeshInstance2D
 @onready var collision: CollisionShape2D = $CollisionShape2D
-@onready var camera: Camera2D = $Camera2D
 
 var player_id: String = ""
 var score: int = 10
@@ -15,15 +14,9 @@ func _process(delta: float) -> void:
 	if not is_local_player:
 		return
 
-	# If NOT in offline mode, ensure server connection exists before running net code
-	if not offline_mode and not NetworkManager.is_server_connected:
-		return
+	var dir := get_local_mouse_position()
 
-	var mouse_pos := get_global_mouse_position()
-	
-	# Offline mode OR Client-Authoritative mode runs movement locally
 	if offline_mode or NetworkManager.admin_config.authority == "client":
-		var dir := (mouse_pos - global_position)
 		if dir.length() > 10.0:
 			global_position += dir.normalized() * move_speed * delta
 			
@@ -38,10 +31,11 @@ func _process(delta: float) -> void:
 		
 	else:
 		# --- BLOCK 1 (SECURED): Send target coordinates to Node.js backend ---
+		var target_world_pos := global_position + dir
 		NetworkManager.send_data({
 			"type": "update",
-			"target_x": mouse_pos.x,
-			"target_y": mouse_pos.y
+			"target_x": target_world_pos.x,
+			"target_y": target_world_pos.y
 		})
 
 func update_from_server(data: Dictionary) -> void:

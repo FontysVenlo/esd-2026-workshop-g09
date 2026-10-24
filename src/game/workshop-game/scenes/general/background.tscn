@@ -17,3 +17,4 @@ offset_left = -2000.0
 offset_top = -2000.0
 offset_right = 2000.0
 offset_bottom = 2000.0
+mouse_filter = 2

@@ -25,10 +25,5 @@ material = SubResource("ShaderMaterial_57qmd")
 scale = Vector2(64, 64)
 mesh = SubResource("QuadMesh_d0u6y")
 
-[node name="Camera2D" type="Camera2D" parent="." unique_id=2045848348]
-enabled = false
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1888718246]
 position_smoothing_enabled = true
-drag_left_margin = 0.0
-drag_top_margin = 0.0
-drag_right_margin = 0.0
-drag_bottom_margin = 0.0
