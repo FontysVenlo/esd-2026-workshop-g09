@@ -21,23 +21,29 @@ var admin_config := {
 var players_state := {}
 
 func _ready() -> void:
+	# Expand internal packet buffer so high-frequency ticks don't drop data
+	socket.inbound_buffer_size = 65536 * 4  # 256 KB buffer (default is 64 KB)
+	socket.outbound_buffer_size = 65536 * 4
 	socket.connect_to_url(server_url)
 
 func _process(_delta: float) -> void:
 	socket.poll()
 	var state := socket.get_ready_state()
-	
+
 	if state == WebSocketPeer.STATE_OPEN:
-		# FIXED: Changed is_connected to is_server_connected to avoid naming collision with Object.is_connected()
 		if not is_server_connected:
 			print("[Network] Connected to Node.js backend!")
 			is_server_connected = true
-			
-		while socket.get_available_packet_count() > 0:
+
+		# Drain packet queue completely to prevent overflow
+		var count := socket.get_available_packet_count()
+		while count > 0:
 			var packet := socket.get_packet()
-			var message := packet.get_string_from_utf8()
-			_parse_message(message)
-			
+			if socket.get_packet_error() == OK:
+				var message := packet.get_string_from_utf8()
+				_parse_message(message)
+			count -= 1
+
 	elif state == WebSocketPeer.STATE_CLOSED and is_server_connected:
 		print("[Network] Disconnected from backend.")
 		is_server_connected = false
