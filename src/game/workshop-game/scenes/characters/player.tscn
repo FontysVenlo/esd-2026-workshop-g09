@@ -1,0 +1,34 @@
+[gd_scene format=3 uid="uid://xkbsm1ke4rr0"]
+
+[ext_resource type="Shader" uid="uid://c016e2u4axhaa" path="res://scripts/shaders/sphere_shader.gdshader" id="1_rp718"]
+[ext_resource type="Script" uid="uid://cigmi0gpfg564" path="res://scripts/players/player.gd" id="1_yewv4"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_g4v7s"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_57qmd"]
+shader = ExtResource("1_rp718")
+shader_parameter/circle_color = Color(0.2, 0.6, 1, 1)
+shader_parameter/border_color = Color(0.1, 0.4, 0.8, 1)
+shader_parameter/border_thickness = 0.08
+
+[sub_resource type="QuadMesh" id="QuadMesh_d0u6y"]
+
+[node name="Player" type="CharacterBody2D" unique_id=518307169]
+script = ExtResource("1_yewv4")
+offline_mode = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1909925579]
+shape = SubResource("CircleShape2D_g4v7s")
+
+[node name="MeshInstance2D" type="MeshInstance2D" parent="." unique_id=1058402698]
+material = SubResource("ShaderMaterial_57qmd")
+scale = Vector2(64, 64)
+mesh = SubResource("QuadMesh_d0u6y")
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=2045848348]
+enabled = false
+position_smoothing_enabled = true
+drag_left_margin = 0.0
+drag_top_margin = 0.0
+drag_right_margin = 0.0
+drag_bottom_margin = 0.0

@@ -1,0 +1,19 @@
+[gd_scene format=3 uid="uid://boy3qdkpe0q10"]
+
+[ext_resource type="Shader" uid="uid://0qaj3duuidvg" path="res://scripts/shaders/bg_grid_shader.gdshader" id="1_ek6gx"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_g4v7s"]
+shader = ExtResource("1_ek6gx")
+shader_parameter/bg_color = Color(0.11489672, 0.11489684, 0.11489674, 1)
+shader_parameter/line_color = Color(0.5211406, 0.5211406, 0.5211405, 1)
+shader_parameter/grid_size = 64.0
+shader_parameter/line_thickness = 2.0
+
+[node name="Background" type="ColorRect" unique_id=1234137971]
+z_index = -100
+material = SubResource("ShaderMaterial_g4v7s")
+custom_minimum_size = Vector2(4000, 4000)
+offset_left = -2000.0
+offset_top = -2000.0
+offset_right = 2000.0
+offset_bottom = 2000.0

@@ -12,9 +12,9 @@ app.use(express.json());
 const adminAuth = (req, res, next) => {
     const authHeader = req.headers.authorization;
     
-    // Change these to your preferred username and password
+    // Change these to the preferred username and password
     const ADMIN_USER = "admin";
-    const ADMIN_PASS = "workshop2026"; 
+    const ADMIN_PASS = "workshop2026!"; 
 
     if (authHeader) {
         const base64Credentials = authHeader.split(' ')[1];

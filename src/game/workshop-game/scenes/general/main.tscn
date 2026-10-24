@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bckblfevijpnu"]
+
+[ext_resource type="PackedScene" uid="uid://boy3qdkpe0q10" path="res://scenes/general/background.tscn" id="1_4m08x"]
+[ext_resource type="PackedScene" uid="uid://xkbsm1ke4rr0" path="res://scenes/characters/player.tscn" id="2_xpm1u"]
+
+[node name="Main" type="Node2D" unique_id=1005645859]
+
+[node name="Background" parent="." unique_id=1234137971 instance=ExtResource("1_4m08x")]
+
+[node name="Player" parent="." unique_id=518307169 instance=ExtResource("2_xpm1u")]
+position = Vector2(587, 311)
+is_local_player = true
