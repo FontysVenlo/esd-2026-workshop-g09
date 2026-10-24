@@ -27,7 +27,8 @@ scale = Vector2(64, 64)
 mesh = SubResource("QuadMesh_d0u6y")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1888718246]
-position_smoothing_enabled = true
+process_callback = 0
+position_smoothing_speed = 120.0
 
 [node name="NameLabel" type="Label" parent="." unique_id=1027858605]
 anchors_preset = 8

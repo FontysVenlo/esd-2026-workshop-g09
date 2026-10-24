@@ -11,6 +11,7 @@
 [node name="Player" parent="." unique_id=518307169 instance=ExtResource("2_xpm1u")]
 position = Vector2(1912, 315)
 is_local_player = true
+offline_mode = false
 
 [node name="Void" parent="." unique_id=976362442 instance=ExtResource("3_gbbem")]
 offset_left = -6576.0
