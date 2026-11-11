@@ -16,7 +16,6 @@ func _on_body_entered(body: Node2D) -> void:
 			var main_node = get_tree().root.get_node_or_null("Main")
 			if main_node and main_node.has_method("spawn_single_exp"):
 				main_node.call_deferred("spawn_single_exp")
-				print("new EXP spawned after eaten yeah!")
 				
 			# 2. Delete this eaten orb instance from the tree
 			queue_free()

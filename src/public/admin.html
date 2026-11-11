@@ -41,6 +41,14 @@
     </div>
 
     <div class="card">
+        <h2>Block 3: Workshop Exploits & Hacking</h2>
+        <label>
+            <input type="checkbox" id="cheat_access" onchange="updateConfig()"> 
+            Unlock In-Game Cheat Menu (F1 Key for Students)
+        </label>
+    </div>
+
+    <div class="card">
         <h2>Block 4: Defenses & Detection</h2>
         <label><input type="checkbox" id="botDetector" onchange="updateConfig()"> Enable Bot Detector (Rigid Input Check)</label>
     </div>
@@ -53,14 +61,13 @@ async function updateConfig() {
         packetLoss: parseInt(document.getElementById('packetLoss').value),
         prediction: document.getElementById('prediction').checked,
         interpolation: document.getElementById('interpolation').checked,
+        cheat_access: document.getElementById('cheat_access').checked,
         botDetector: document.getElementById('botDetector').checked
     };
 
-    // Update UI labels
     document.getElementById('latVal').innerText = config.latency;
     document.getElementById('lossVal').innerText = config.packetLoss;
 
-    // Send to Node.js backend
     await fetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

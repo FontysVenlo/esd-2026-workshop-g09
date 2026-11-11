@@ -25,6 +25,9 @@ func _ready() -> void:
 		else:
 			set_player_code("..")
 			
+		# Connect to CheatManager signals
+		CheatManager.camera_zoom_changed.connect(_on_cheat_zoom_changed)
+			
 		# Initialize the UI score display on frame 1
 		set_score(score)
 	else:
@@ -80,10 +83,13 @@ func _physics_process(_delta: float) -> void:
 
 	var dir := get_local_mouse_position()
 
+	# Calculate speed modified by CheatManager slider multiplier
+	var effective_speed := move_speed * CheatManager.speed_multiplier
+
 	# Offline mode OR Client-Authoritative mode runs movement locally
 	if offline_mode or NetworkManager.admin_config.authority == "client":
 		if dir.length() > 10.0:
-			velocity = dir.normalized() * move_speed
+			velocity = dir.normalized() * effective_speed
 		else:
 			velocity = Vector2.ZERO
 
@@ -129,6 +135,11 @@ func _update_player_scale() -> void:
 	
 	var base_zoom := 1.0
 	var zoom_factor := base_zoom / (1.0 + (growth_factor - 1.0) * 0.4)
+	
+	# If CheatManager camera zoom is modified (< 1.0), override default score zoom
+	if CheatManager.custom_zoom_level < 1.0:
+		zoom_factor = CheatManager.custom_zoom_level
+
 	var target_camera_zoom := Vector2(zoom_factor, zoom_factor)
 	
 	var tween := create_tween().set_parallel(true)
@@ -139,3 +150,8 @@ func _update_player_scale() -> void:
 	if has_node("Camera2D"):
 		var camera := $Camera2D as Camera2D
 		tween.tween_property(camera, "zoom", target_camera_zoom, 0.25).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+func _on_cheat_zoom_changed(new_zoom: float) -> void:
+	if has_node("Camera2D"):
+		var camera := $Camera2D as Camera2D
+		create_tween().tween_property(camera, "zoom", Vector2(new_zoom, new_zoom), 0.2).set_trans(Tween.TRANS_SINE)

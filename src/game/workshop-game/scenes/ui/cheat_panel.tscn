@@ -1,0 +1,68 @@
+[gd_scene format=3 uid="uid://h17tq1767vq6"]
+
+[ext_resource type="Script" uid="uid://jp6qbcrecdc6" path="res://scripts/ui/cheat_panel.gd" id="1_cenpq"]
+
+[node name="CheatPanel" type="PanelContainer" unique_id=1172270267]
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_cenpq")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=710959077]
+layout_mode = 2
+color = Color(0.16924527, 0.1692453, 0.16924527, 0.29411766)
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=1034957873]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=46730423]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=38889939]
+layout_mode = 2
+text = "--- CLIENT EXPLOIT MENU ---"
+
+[node name="HSeparator" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=685451986]
+layout_mode = 2
+
+[node name="ESPCheck" type="CheckButton" parent="MarginContainer/VBoxContainer" unique_id=603212463]
+unique_name_in_owner = true
+layout_mode = 2
+text = "ESP / Player Radar"
+
+[node name="HSeparator2" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=1712512026]
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=323737255]
+layout_mode = 2
+
+[node name="SpeedTitle" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer" unique_id=1928498741]
+layout_mode = 2
+text = "Speed Mult:"
+
+[node name="SpeedValueLabel" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer" unique_id=607965377]
+unique_name_in_owner = true
+layout_mode = 2
+text = "1.0x"
+
+[node name="SpeedSlider" type="HSlider" parent="MarginContainer/VBoxContainer" unique_id=1707973177]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HSeparator3" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=795247229]
+layout_mode = 2
+
+[node name="ZoomHeaderHbox" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=1419850125]
+layout_mode = 2
+
+[node name="ZoomTitle" type="Label" parent="MarginContainer/VBoxContainer/ZoomHeaderHbox" unique_id=1778277684]
+layout_mode = 2
+text = "Camera Zoom:"
+
+[node name="ZoomValueLabel" type="Label" parent="MarginContainer/VBoxContainer/ZoomHeaderHbox" unique_id=112050713]
+unique_name_in_owner = true
+layout_mode = 2
+text = "1.0x"
+
+[node name="ZoomSlider" type="HSlider" parent="MarginContainer/VBoxContainer" unique_id=780893155]
+unique_name_in_owner = true
+layout_mode = 2

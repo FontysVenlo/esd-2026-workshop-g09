@@ -35,7 +35,7 @@ app.get('/admin.html', adminAuth, (req, res) => {
     res.sendFile(__dirname + '/public/admin.html');
 });
 
-// Serve all other static files (your Godot HTML5 game export) from the 'public' folder
+// Serve static files (Godot Web Export)
 app.use(express.static('public'));
 
 // --- ADMIN SWITCHBOARD CONFIGURATION ---
@@ -43,10 +43,11 @@ let adminConfig = {
     authority: 'client',        // 'client' (Workshop 1 exploit) or 'server'
     prediction: true,           // Client-side prediction toggle
     interpolation: true,        // Entity interpolation toggle
+    cheat_access: false,        // Block 3: In-game exploit menu unlock flag
     latency: 0,                 // Artificial lag in ms (0 - 300)
     packetLoss: 0,              // Packet loss percentage (0 - 10)
-    interestManagement: false,  // Fog of war / visibility filter
-    serverClock: false,         // Strict tick rate validation (Speedhack defense)
+    interestManagement: false,  // Visibility filter
+    serverClock: false,         // Tick rate validation
     botDetector: false          // Flag regular inputs
 };
 
@@ -57,21 +58,18 @@ const NUMBERS = "0123456789";
 function createCodePool() {
     const pool = [];
     
-    // Pattern 1: Letter + Number (e.g., K7, B3) -> 260 codes
     for (let l of LETTERS) {
         for (let n of NUMBERS) {
             pool.push(`${l}${n}`);
         }
     }
     
-    // Pattern 2: Number + Letter (e.g., 7K, 3B) -> 260 codes
     for (let n of NUMBERS) {
         for (let l of LETTERS) {
             pool.push(`${n}${l}`);
         }
     }
 
-    // Fisher-Yates shuffle so codes are assigned in random order
     for (let i = pool.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -88,23 +86,21 @@ let players = {};
 // --- WEBSOCKET CONNECTION HANDLING ---
 wss.on('connection', (ws) => {
     const playerId = Math.random().toString(36).substring(2, 9);
-    
-    // Grab the next unique 2-character code from the pool
     const assignedCode = availableCodes.length > 0 ? availableCodes.pop() : "??";
 
-    // Initialize new player with assigned code
     players[playerId] = {
         id: playerId,
         code: assignedCode,
         x: 100,
         y: 100,
+        target_x: 100,
+        target_y: 100,
         score: 0,
         lastInputTime: Date.now()
     };
 
     console.log(`[Connect] Player joined: ${playerId} (Code: ${assignedCode})`);
 
-    // Send the assigned player ID and unique code directly to the connecting client
     ws.send(JSON.stringify({
         type: 'init',
         playerId: playerId,
@@ -117,23 +113,21 @@ wss.on('connection', (ws) => {
             const player = players[playerId];
             if (!player) return;
 
-            // HANDLE BLOCK 1 & 2: Client vs Server Authority
             if (data.type === 'update') {
                 if (adminConfig.authority === 'client') {
-                    // UNSECURED: Server blindly trusts whatever coordinates/score the client sends
+                    // Client-authoritative: Server blindly accepts incoming coordinates and score
                     if (data.x !== undefined) player.x = data.x;
                     if (data.y !== undefined) player.y = data.y;
                     if (data.score !== undefined) player.score = data.score;
                 } else {
-                    // SECURED: Server processes raw inputs / target mouse coords
-                    if (data.target_x !== undefined) player.x = data.target_x;
-                    if (data.target_y !== undefined) player.y = data.target_y;
+                    // Server-authoritative: Server accepts target destination
+                    if (data.target_x !== undefined) player.target_x = data.target_x;
+                    if (data.target_y !== undefined) player.target_y = data.target_y;
 
-                    // HANDLE BLOCK 4: Simple Bot Detector (Checks input regularity)
+                    // Bot Detector (Rigid Input Check)
                     if (adminConfig.botDetector) {
                         const now = Date.now();
                         const timeDiff = now - player.lastInputTime;
-                        // If inputs arrive at an exact rigid interval (e.g., macro automation), flag it
                         if (timeDiff > 40 && timeDiff < 60) {
                             ws.send(JSON.stringify({ type: 'alert', message: 'Bot detected! Input timing too regular.' }));
                         }
@@ -149,10 +143,8 @@ wss.on('connection', (ws) => {
     ws.on('close', () => {
         const player = players[playerId];
         if (player && player.code !== "??") {
-            // Recycle the code back into the available pool for new players
             availableCodes.push(player.code);
         }
-        
         delete players[playerId];
         console.log(`[Disconnect] Player left: ${playerId}`);
     });
@@ -160,18 +152,35 @@ wss.on('connection', (ws) => {
 
 // --- GAME TICK LOOP (20 Hz / Every 50ms) ---
 setInterval(() => {
+    // Process server-side player movement if authority is set to "server"
+    if (adminConfig.authority === 'server') {
+        const speed = 200 * 0.05; // 200 px/sec * 0.05s tick interval = 10 px per tick
+
+        for (let id in players) {
+            const p = players[id];
+            const dx = p.target_x - p.x;
+            const dy = p.target_y - p.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist > 5) {
+                p.x += (dx / dist) * speed;
+                p.y += (dy / dist) * speed;
+            }
+        }
+    }
+
     const payload = JSON.stringify({
         type: 'state',
         players: players,
         config: adminConfig
     });
 
-    // Broadcast state to all connected clients
+    // Broadcast state to all clients
     wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
             // Simulate Packet Loss
             if (adminConfig.packetLoss > 0 && Math.random() < (adminConfig.packetLoss / 100)) {
-                return; // Drop packet intentionally
+                return;
             }
 
             // Simulate Latency

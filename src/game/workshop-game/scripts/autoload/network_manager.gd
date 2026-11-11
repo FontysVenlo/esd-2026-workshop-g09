@@ -1,6 +1,7 @@
 extends Node
 
 signal player_initialized(player_id: String, code: String)
+signal cheat_access_changed(has_access: bool)
 
 var socket := WebSocketPeer.new()
 var server_url := "ws://127.0.0.1:3000"
@@ -9,13 +10,17 @@ var is_server_connected := false
 var my_player_id: String = ""
 var my_code: String = ""
 
+# Tracks whether the admin web dashboard has granted cheat menu permissions
+var has_cheat_access: bool = false
+
 var admin_config := {
 	"authority": "client",
 	"latency": 0,
 	"packetLoss": 0,
 	"prediction": true,
 	"interpolation": true,
-	"botDetector": false
+	"botDetector": false,
+	"cheat_access": false
 }
 
 var players_state := {}
@@ -72,6 +77,13 @@ func _parse_message(raw_json: String) -> void:
 			"state":
 				if data.has("config"):
 					admin_config = data["config"]
+					
+					# Update cheat access state and notify listeners if flag changes
+					var new_cheat_access: bool = admin_config.get("cheat_access", false)
+					if new_cheat_access != has_cheat_access:
+						has_cheat_access = new_cheat_access
+						cheat_access_changed.emit(has_cheat_access)
+
 				if data.has("players"):
 					players_state = data["players"]
 
