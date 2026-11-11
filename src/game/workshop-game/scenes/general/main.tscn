@@ -4,9 +4,11 @@
 [ext_resource type="Script" uid="uid://be81dc54rngn4" path="res://scripts/systems/main.gd" id="1_qkl7e"]
 [ext_resource type="PackedScene" uid="uid://xkbsm1ke4rr0" path="res://scenes/characters/player.tscn" id="2_xpm1u"]
 [ext_resource type="PackedScene" uid="uid://dsku6jonocnq4" path="res://scenes/general/void.tscn" id="3_gbbem"]
+[ext_resource type="PackedScene" uid="uid://tbq73vaddsm0" path="res://scenes/general/exp.tscn" id="5_6t4g7"]
 
 [node name="Main" type="Node2D" unique_id=1005645859]
 script = ExtResource("1_qkl7e")
+exp_orb_scene = ExtResource("5_6t4g7")
 
 [node name="Background" parent="." unique_id=1234137971 instance=ExtResource("1_4m08x")]
 
@@ -20,6 +22,9 @@ offset_left = -6576.0
 offset_top = -4501.0
 offset_right = 6392.0
 offset_bottom = 4424.0
+
+[node name="ExpContainer" type="Node2D" parent="." unique_id=320802464]
+unique_name_in_owner = true
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=933944786]
 

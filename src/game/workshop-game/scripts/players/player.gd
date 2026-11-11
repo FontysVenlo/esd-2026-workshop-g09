@@ -9,7 +9,7 @@ extends CharacterBody2D
 @onready var name_label: Label = $NameLabel
 
 var player_id: String = ""
-var score: int = 10
+var score: int = 0
 
 func _ready() -> void:
 	if is_local_player:

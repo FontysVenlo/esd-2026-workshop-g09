@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://tbq73vaddsm0"]
+
+[ext_resource type="Script" uid="uid://q18f0v12kqlj" path="res://scripts/systems/exp.gd" id="1_fbj5p"]
+[ext_resource type="Texture2D" uid="uid://0lh1m3viuf6x" path="res://assets/art/tile_0151.png" id="2_ohbbb"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_g4v7s"]
+
+[node name="Exp" type="Area2D" unique_id=930032047]
+scale = Vector2(2, 2)
+script = ExtResource("1_fbj5p")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=2130061756]
+texture = ExtResource("2_ohbbb")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=805783506]
+shape = SubResource("CircleShape2D_g4v7s")
