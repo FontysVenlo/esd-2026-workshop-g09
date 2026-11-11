@@ -108,37 +108,29 @@ wss.on('connection', (ws) => {
     }));
 
     ws.on('message', (message) => {
-        try {
-            const data = JSON.parse(message);
-            const player = players[playerId];
-            if (!player) return;
+    try {
+        const data = JSON.parse(message);
+        const player = players[playerId];
+        if (!player) return;
 
-            if (data.type === 'update') {
-                if (adminConfig.authority === 'client') {
-                    // Client-authoritative: Server blindly accepts incoming coordinates and score
-                    if (data.x !== undefined) player.x = data.x;
-                    if (data.y !== undefined) player.y = data.y;
-                    if (data.score !== undefined) player.score = data.score;
-                } else {
-                    // Server-authoritative: Server accepts target destination
-                    if (data.target_x !== undefined) player.target_x = data.target_x;
-                    if (data.target_y !== undefined) player.target_y = data.target_y;
+        if (data.type === 'update') {
+            // Position updates are always accepted for smooth rendering
+            if (data.x !== undefined) player.x = data.x;
+            if (data.y !== undefined) player.y = data.y;
 
-                    // Bot Detector (Rigid Input Check)
-                    if (adminConfig.botDetector) {
-                        const now = Date.now();
-                        const timeDiff = now - player.lastInputTime;
-                        if (timeDiff > 40 && timeDiff < 60) {
-                            ws.send(JSON.stringify({ type: 'alert', message: 'Bot detected! Input timing too regular.' }));
-                        }
-                        player.lastInputTime = now;
-                    }
-                }
+            // SCORE AUTHORITY SWITCH
+            if (adminConfig.authority === 'client') {
+                // EXPLOITABLE: Server blindly trusts whatever score the client sends
+                if (data.score !== undefined) player.score = data.score;
+            } else {
+                // SECURED: Server ignores client score payload!
+                // (Server increases player.score only when server collision/event triggers)
             }
-        } catch (err) {
-            console.error('Invalid message format', err);
         }
-    });
+    } catch (err) {
+        console.error('Invalid message format', err);
+    }
+});
 
     ws.on('close', () => {
         const player = players[playerId];
