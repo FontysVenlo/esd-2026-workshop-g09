@@ -44,7 +44,11 @@ func set_player_code(code_str: String) -> void:
 
 # --- SCORE MANAGEMENT LOGIC ---
 func set_score(new_score: int) -> void:
-	score = new_score
+	score = clamp(new_score, 0, 10000)
+	
+	# Update visual scale based on score
+	_update_player_scale()
+	
 	if is_local_player:
 		var main_node = get_tree().root.get_node_or_null("Main")
 		if main_node and main_node.has_method("update_score_hud"):
@@ -71,6 +75,8 @@ func _physics_process(_delta: float) -> void:
 	# Quick hotkey test for score increase during development
 	if Input.is_key_pressed(KEY_P):
 		add_score(10)
+	if Input.is_key_pressed(KEY_O):
+		add_score(-10)
 
 	var dir := get_local_mouse_position()
 
@@ -116,3 +122,20 @@ func update_from_server(data: Dictionary) -> void:
 	# Update score and trigger UI refreshed text if server sends new score
 	if data.has("score"):
 		set_score(data.score)
+
+func _update_player_scale() -> void:
+	var growth_factor := 1.0 + sqrt(float(max(score, 0)) / 25.0)
+	var target_player_scale := Vector2(growth_factor, growth_factor)
+	
+	var base_zoom := 1.0
+	var zoom_factor := base_zoom / (1.0 + (growth_factor - 1.0) * 0.4)
+	var target_camera_zoom := Vector2(zoom_factor, zoom_factor)
+	
+	var tween := create_tween().set_parallel(true)
+	
+	# Scales the CharacterBody2D -> automatically grows Mesh, CollisionShape2D, and NameLabel together!
+	tween.tween_property(self, "scale", target_player_scale, 0.25).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	
+	if has_node("Camera2D"):
+		var camera := $Camera2D as Camera2D
+		tween.tween_property(camera, "zoom", target_camera_zoom, 0.25).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
