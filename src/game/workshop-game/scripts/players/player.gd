@@ -24,6 +24,9 @@ func _ready() -> void:
 			set_player_code(generate_random_2char_code())
 		else:
 			set_player_code("..")
+			
+		# Initialize the UI score display on frame 1
+		set_score(score)
 	else:
 		# For remote dummy players spawned across the network
 		if not player_id.is_empty():
@@ -38,6 +41,17 @@ func set_player_code(code_str: String) -> void:
 	player_id = code_str
 	if name_label:
 		name_label.text = player_id
+
+# --- SCORE MANAGEMENT LOGIC ---
+func set_score(new_score: int) -> void:
+	score = new_score
+	if is_local_player:
+		var main_node = get_tree().root.get_node_or_null("Main")
+		if main_node and main_node.has_method("update_score_hud"):
+			main_node.update_score_hud(score)
+
+func add_score(amount: int) -> void:
+	set_score(score + amount)
 
 func generate_random_2char_code() -> String:
 	var letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -54,6 +68,10 @@ func _physics_process(_delta: float) -> void:
 	if not is_local_player:
 		return
 
+	# Quick hotkey test for score increase during development
+	if Input.is_key_pressed(KEY_P):
+		add_score(10)
+
 	var dir := get_local_mouse_position()
 
 	# Offline mode OR Client-Authoritative mode runs movement locally
@@ -63,10 +81,9 @@ func _physics_process(_delta: float) -> void:
 		else:
 			velocity = Vector2.ZERO
 
-		# move_and_slide() handles wall collisions and velocity application automatically
 		move_and_slide()
 
-		# Only transmit packets if live server connection is active
+		# Transmit position AND current score payload to Node.js backend
 		if not offline_mode and NetworkManager.is_server_connected:
 			NetworkManager.send_data({
 				"type": "update",
@@ -96,5 +113,6 @@ func update_from_server(data: Dictionary) -> void:
 		else:
 			global_position = target_pos # Hard snap for testing rubberbanding
 
+	# Update score and trigger UI refreshed text if server sends new score
 	if data.has("score"):
-		score = data.score
+		set_score(data.score)
