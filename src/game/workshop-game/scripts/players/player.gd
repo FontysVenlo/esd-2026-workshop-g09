@@ -3,6 +3,7 @@ extends CharacterBody2D
 @export var move_speed: float = 200.0
 @export var is_local_player: bool = false
 @export var offline_mode: bool = false # Toggle ON for quick offline tests in Godot editor
+@export var dev_mode: bool = false     # Toggle ON to enable O/P hotkeys for testing score
 
 @onready var mesh: MeshInstance2D = $MeshInstance2D
 @onready var collision: CollisionShape2D = $CollisionShape2D
@@ -37,6 +38,7 @@ func _ready() -> void:
 			
 		# Connect to CheatManager signals
 		CheatManager.camera_zoom_changed.connect(_on_cheat_zoom_changed)
+		CheatManager.esp_toggled.connect(_on_esp_toggled)
 			
 		# Initialize the UI score display on frame 1
 		set_score(score)
@@ -83,11 +85,13 @@ func generate_random_2char_code() -> String:
 	else:
 		return rand_number + rand_letter
 
-# Inside Player.gd
-
 func _physics_process(_delta: float) -> void:
 	if not is_local_player:
 		return
+
+	# Redraw ESP canvas lines while active
+	if CheatManager.esp_enabled:
+		queue_redraw()
 
 	# --- DEVTOOLS CONSOLE EXPLOIT BRIDGE ---
 	if OS.has_feature("web"):
@@ -106,6 +110,12 @@ func _physics_process(_delta: float) -> void:
 
 		# Push live coordinates back to window.player for console inspect
 		JavaScriptBridge.eval("if (window.player) { window.player.x = %f; window.player.y = %f; }" % [global_position.x, global_position.y])
+
+	if dev_mode:
+		if Input.is_key_pressed(KEY_P):
+			add_score(10)
+		if Input.is_key_pressed(KEY_O):
+			add_score(-10)
 
 	# --- LOCAL MOVEMENT (Runs unconditionally for responsive controls) ---
 	var dir := get_local_mouse_position()
@@ -172,3 +182,31 @@ func _on_cheat_zoom_changed(new_zoom: float) -> void:
 	if has_node("Camera2D"):
 		var camera := $Camera2D as Camera2D
 		create_tween().tween_property(camera, "zoom", Vector2(new_zoom, new_zoom), 0.2).set_trans(Tween.TRANS_SINE)
+
+# --- ESP DRAWING & SIGNAL HANDLERS ---
+func _on_esp_toggled(_enabled: bool) -> void:
+	queue_redraw()
+
+func _draw() -> void:
+	if not is_local_player or not CheatManager.esp_enabled:
+		return
+
+	var main_node = get_tree().root.get_node_or_null("Main")
+	if not main_node:
+		return
+
+	# Calculate RGB rainbow cycle based on elapsed milliseconds
+	var time_offset := Time.get_ticks_msec() * 0.0005
+	var hue := fmod(time_offset, 1.0)
+	
+	# Create glowing RGB line color (Hue, Saturation 1.0, Value 1.0)
+	var line_color := Color.from_hsv(hue, 1.0, 1.0, 0.85)
+
+	for child in main_node.get_children():
+		# Detect any other player node (e.g. Player2, dummy nodes, or network clients)
+		if (child.is_in_group("players") or child.name.begins_with("Player")) and child != self:
+			if child is Node2D:
+				var local_target_pos := to_local(child.global_position)
+				
+				# Animated RGB tracer line from local player center to target
+				draw_line(Vector2.ZERO, local_target_pos, line_color, 2.5)

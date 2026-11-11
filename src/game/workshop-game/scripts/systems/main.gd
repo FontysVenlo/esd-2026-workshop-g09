@@ -39,3 +39,10 @@ func spawn_single_exp() -> void:
 func update_score_hud(new_score: int) -> void:
 	if score_label:
 		score_label.text = "Score: " + str(new_score)
+
+# TODO REMOVE THIS LATER ON!
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.is_echo():
+		if event.keycode == KEY_ESCAPE:
+			# For desktop testing & editor previews: closes the app
+			get_tree().quit()
