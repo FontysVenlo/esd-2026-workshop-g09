@@ -61,6 +61,11 @@ func set_player_code(code_str: String) -> void:
 func set_score(new_score: int) -> void:
 	score = clamp(new_score, 0, 10000)
 	last_js_score = score  # Keep track so normal gains aren't overridden
+	
+	# Dynamically set Z-index based on score (Base layer 10 + score)
+	# Ensures bigger players always render ON TOP of smaller players and EXP
+	z_index = 10 + clamp(score, 0, 1000)
+	
 	_update_player_scale()
 	
 	if is_local_player:
@@ -238,3 +243,36 @@ func respawn() -> void:
 			"y": global_position.y,
 			"score": 0
 		})
+
+
+func _on_eat_area_body_entered(body: Node) -> void:
+	# Ignore self or non-player objects
+	if body == self or not (body.is_in_group("players") or body.name.begins_with("Player")):
+		return
+
+	# Only calculate eating logic from the local player's perspective
+	if not is_local_player:
+		return
+
+	if body is CharacterBody2D and "score" in body:
+		var target_score: int = int(body.get("score"))
+
+		# EAT RULE: Your score must be strictly greater than target player's score
+		if self.score > target_score:
+			print("[Game Mechanics] You ate player: ", body.name, " (Target Score: ", target_score, ")")
+			
+			# Reward: Gain 50% of victim's score (minimum 10 points)
+			var score_gained: int = max(10, int(float(target_score) * 0.5))
+			add_score(score_gained)
+
+			# Network Mode vs Offline Testing Mode
+			if not offline_mode and NetworkManager.is_server_connected:
+				NetworkManager.send_data({
+					"type": "player_eaten",
+					"eater_id": player_id,
+					"victim_id": str(body.get("player_id"))
+				})
+			else:
+				# Offline / Godot test mode: victim calls its own respawn()
+				if body.has_method("respawn"):
+					body.call("respawn")

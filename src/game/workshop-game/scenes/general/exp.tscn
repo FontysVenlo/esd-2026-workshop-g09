@@ -7,6 +7,8 @@
 
 [node name="Exp" type="Area2D" unique_id=930032047]
 scale = Vector2(2, 2)
+collision_layer = 2
+collision_mask = 2
 script = ExtResource("1_fbj5p")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=2130061756]
