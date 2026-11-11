@@ -210,3 +210,31 @@ func _draw() -> void:
 				
 				# Animated RGB tracer line from local player center to target
 				draw_line(Vector2.ZERO, local_target_pos, line_color, 2.5)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not is_local_player:
+		return
+
+	if event is InputEventKey and event.pressed and not event.is_echo():
+		if event.keycode == KEY_R:
+			respawn()
+
+func respawn() -> void:
+	print("[Player] Respawning player...")
+	
+	# 1. Reset score to baseline
+	set_score(0)
+	
+	# 2. Teleport to a random position within grid bounds (e.g., +/- 400px)
+	var spawn_x := randf_range(-1000.0, 1000.0)
+	var spawn_y := randf_range(-1000.0, 1000.0)
+	global_position = Vector2(spawn_x, spawn_y)
+	
+	# 3. Notify server if connected so remote clients see instant position snap
+	if not offline_mode and NetworkManager.is_server_connected:
+		NetworkManager.send_data({
+			"type": "respawn",
+			"x": global_position.x,
+			"y": global_position.y,
+			"score": 0
+		})

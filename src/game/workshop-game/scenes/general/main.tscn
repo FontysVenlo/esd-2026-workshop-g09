@@ -17,6 +17,7 @@ exp_orb_scene = ExtResource("5_6t4g7")
 position = Vector2(1912, 315)
 is_local_player = true
 offline_mode = true
+dev_mode = true
 
 [node name="Player2" parent="." unique_id=1757004060 instance=ExtResource("2_xpm1u")]
 position = Vector2(938, 816)
