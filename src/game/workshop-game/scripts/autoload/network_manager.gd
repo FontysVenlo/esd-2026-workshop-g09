@@ -26,8 +26,13 @@ var admin_config := {
 var players_state := {}
 
 func _ready() -> void:
-	# Expand internal packet buffer so high-frequency ticks don't drop data
-	socket.inbound_buffer_size = 65536 * 4  # 256 KB buffer (default is 64 KB)
+	# Automatically match the browser's host (localhost vs 127.0.0.1) on Web exports
+	if OS.has_feature("web"):
+		var host = JavaScriptBridge.eval("window.location.host")
+		if host and not str(host).is_empty():
+			server_url = "ws://" + str(host)
+
+	socket.inbound_buffer_size = 65536 * 4
 	socket.outbound_buffer_size = 65536 * 4
 	socket.connect_to_url(server_url)
 
@@ -83,6 +88,12 @@ func _parse_message(raw_json: String) -> void:
 					if new_cheat_access != has_cheat_access:
 						has_cheat_access = new_cheat_access
 						cheat_access_changed.emit(has_cheat_access)
+						
+						# Reset active cheats if admin revokes permission mid-game
+						if not has_cheat_access:
+							CheatManager.set_esp(false)
+							CheatManager.set_speed_multiplier(1.0)
+							CheatManager.set_camera_zoom(1.0)
 
 				if data.has("players"):
 					players_state = data["players"]
