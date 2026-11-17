@@ -31,10 +31,10 @@
     <div class="card">
         <h2>Block 2: Latency & Network</h2>
         <label>Artificial Latency (ms): <span id="latVal" class="status">0</span>ms</label>
-        <input type="range" id="latency" min="0" max="500" value="0" oninput="updateConfig()">
+        <input type="range" id="latency" min="0" max="2000" value="0" oninput="updateConfig()">
 
         <label>Packet Loss (%): <span id="lossVal" class="status">0</span>%</label>
-        <input type="range" id="packetLoss" min="0" max="20" value="0" oninput="updateConfig()">
+        <input type="range" id="packetLoss" min="0" max="90" value="0" oninput="updateConfig()">
         
         <label><input type="checkbox" id="prediction" checked onchange="updateConfig()"> Client-Side Prediction</label>
         <label><input type="checkbox" id="interpolation" checked onchange="updateConfig()"> Entity Interpolation</label>

@@ -98,5 +98,11 @@ func _parse_message(raw_json: String) -> void:
 				if data.has("players"):
 					players_state = data["players"]
 
+			"eaten":
+				print("[Network] You were eaten! Respawning...")
+				var local_p := get_tree().root.get_node_or_null("Main/Player")
+				if local_p and local_p.has_method("respawn"):
+					local_p.call("respawn")
+
 			"alert":
 				print("[SERVER ALERT] ", data["message"])

@@ -10,6 +10,7 @@
 [node name="Main" type="Node2D" unique_id=1005645859]
 script = ExtResource("1_qkl7e")
 exp_orb_scene = ExtResource("5_6t4g7")
+player_scene = ExtResource("2_xpm1u")
 
 [node name="Background" parent="." unique_id=1234137971 instance=ExtResource("1_4m08x")]
 

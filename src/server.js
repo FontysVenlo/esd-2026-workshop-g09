@@ -44,8 +44,8 @@ let adminConfig = {
     prediction: true,           // Client-side prediction toggle
     interpolation: true,        // Entity interpolation toggle
     cheat_access: false,        // Block 3: In-game exploit menu unlock flag
-    latency: 0,                 // Artificial lag in ms (0 - 300)
-    packetLoss: 0,              // Packet loss percentage (0 - 10)
+    latency: 0,                 // Artificial lag in ms (0 - 1500+)
+    packetLoss: 0,              // Packet loss percentage (0 - 100)
     interestManagement: false,  // Visibility filter
     serverClock: false,         // Tick rate validation
     botDetector: false          // Flag regular inputs
@@ -80,14 +80,33 @@ function createCodePool() {
 
 const availableCodes = createCodePool();
 
-// Master game state tracking all connected players
+// Master game state tracking all connected players & their WebSocket references
 let players = {};
+const playerSockets = {};
+
+// --- INBOUND NETWORK / DDoS LAG SIMULATOR (Client -> Server) ---
+function processWithNetworkLag(callback) {
+    // 1. Inbound Packet Loss (drops player updates before server sees them)
+    if (adminConfig.packetLoss > 0 && Math.random() < (adminConfig.packetLoss / 100)) {
+        return;
+    }
+
+    // 2. Inbound Latency + Jitter (spikes unpredictably when latency > 250ms to mimic DDoS)
+    const baseLatency = Number(adminConfig.latency) || 0;
+    if (baseLatency > 0) {
+        const jitter = baseLatency > 250 ? Math.random() * (baseLatency * 0.5) : 0;
+        setTimeout(callback, baseLatency + jitter);
+    } else {
+        callback();
+    }
+}
 
 // --- WEBSOCKET CONNECTION HANDLING ---
 wss.on('connection', (ws) => {
     const playerId = Math.random().toString(36).substring(2, 9);
     const assignedCode = availableCodes.length > 0 ? availableCodes.pop() : "??";
 
+    playerSockets[playerId] = ws;
     players[playerId] = {
         id: playerId,
         code: assignedCode,
@@ -108,29 +127,59 @@ wss.on('connection', (ws) => {
     }));
 
     ws.on('message', (message) => {
-    try {
-        const data = JSON.parse(message);
-        const player = players[playerId];
-        if (!player) return;
+        try {
+            const data = JSON.parse(message);
 
-        if (data.type === 'update') {
-            // Position updates are always accepted for smooth rendering
-            if (data.x !== undefined) player.x = data.x;
-            if (data.y !== undefined) player.y = data.y;
+            // Wrap incoming client traffic in Block 2 latency & packet loss
+            processWithNetworkLag(() => {
+                const player = players[playerId];
+                if (!player) return;
 
-            // SCORE AUTHORITY SWITCH
-            if (adminConfig.authority === 'client') {
-                // EXPLOITABLE: Server blindly trusts whatever score the client sends
-                if (data.score !== undefined) player.score = data.score;
-            } else {
-                // SECURED: Server ignores client score payload!
-                // (Server increases player.score only when server collision/event triggers)
-            }
+                if (data.type === 'update') {
+                    if (data.x !== undefined) {
+                        player.x = data.x;
+                        player.target_x = data.x;
+                    }
+                    if (data.y !== undefined) {
+                        player.y = data.y;
+                        player.target_y = data.y;
+                    }
+
+                    // SCORE AUTHORITY SWITCH
+                    if (adminConfig.authority === 'client') {
+                        // EXPLOITABLE: Server blindly trusts whatever score the client sends
+                        if (data.score !== undefined) player.score = data.score;
+                    }
+                } 
+                else if (data.type === 'respawn') {
+                    player.score = 0;
+                    if (data.x !== undefined) player.x = data.x;
+                    if (data.y !== undefined) player.y = data.y;
+                } 
+                else if (data.type === 'player_eaten') {
+                    // Find victim by their 2-char code (player_id in Godot)
+                    const victim = Object.values(players).find(p => p.code === data.victim_id);
+                    if (victim) {
+                        if (adminConfig.authority === 'client' || player.score > victim.score) {
+                            const gained = Math.max(10, Math.floor(victim.score * 0.5));
+                            player.score += gained;
+                            victim.score = 0;
+                            victim.x = (Math.random() - 0.5) * 800;
+                            victim.y = (Math.random() - 0.5) * 800;
+
+                            // Notify the victim's client directly so it triggers respawn()
+                            const victimWs = playerSockets[victim.id];
+                            if (victimWs && victimWs.readyState === WebSocket.OPEN) {
+                                victimWs.send(JSON.stringify({ type: 'eaten' }));
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (err) {
+            console.error('Invalid message format', err);
         }
-    } catch (err) {
-        console.error('Invalid message format', err);
-    }
-});
+    });
 
     ws.on('close', () => {
         const player = players[playerId];
@@ -138,6 +187,7 @@ wss.on('connection', (ws) => {
             availableCodes.push(player.code);
         }
         delete players[playerId];
+        delete playerSockets[playerId];
         console.log(`[Disconnect] Player left: ${playerId}`);
     });
 });
@@ -170,15 +220,17 @@ setInterval(() => {
     // Broadcast state to all clients
     wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
-            // Simulate Packet Loss
+            // Simulate Outbound Packet Loss
             if (adminConfig.packetLoss > 0 && Math.random() < (adminConfig.packetLoss / 100)) {
                 return;
             }
 
-            // Simulate Latency
+            // Simulate Outbound Latency
             if (adminConfig.latency > 0) {
                 setTimeout(() => {
-                    client.send(payload);
+                    if (client.readyState === WebSocket.OPEN) {
+                        client.send(payload);
+                    }
                 }, adminConfig.latency);
             } else {
                 client.send(payload);
@@ -196,6 +248,24 @@ app.post('/api/config', (req, res) => {
 
 app.get('/api/config', (req, res) => {
     res.json(adminConfig);
+});
+
+// Trigger a temporary 5-second DDoS congestion spike
+app.post('/api/ddos', (req, res) => {
+    const prevLatency = adminConfig.latency;
+    const prevLoss = adminConfig.packetLoss;
+
+    adminConfig.latency = 1200;
+    adminConfig.packetLoss = 60;
+    console.log('[DDoS SIM] Heavy congestion spike started (1200ms latency, 60% loss)');
+
+    setTimeout(() => {
+        adminConfig.latency = prevLatency;
+        adminConfig.packetLoss = prevLoss;
+        console.log('[DDoS SIM] Congestion spike cleared.');
+    }, 5000);
+
+    res.json({ success: true, message: '5s DDoS spike triggered' });
 });
 
 // Start server

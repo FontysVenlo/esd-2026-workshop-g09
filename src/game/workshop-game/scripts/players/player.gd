@@ -122,23 +122,40 @@ func _physics_process(_delta: float) -> void:
 		if Input.is_key_pressed(KEY_O):
 			add_score(-10)
 
-	# --- LOCAL MOVEMENT (Runs unconditionally for responsive controls) ---
+	# --- LOCAL MOVEMENT & CLIENT-SIDE PREDICTION ---
 	var dir := get_local_mouse_position()
 	var effective_speed := move_speed * CheatManager.speed_multiplier
+	var input_velocity := Vector2.ZERO
 
 	if dir.length() > 10.0:
-		velocity = dir.normalized() * effective_speed
+		input_velocity = dir.normalized() * effective_speed
+
+	var use_prediction: bool = NetworkManager.admin_config.get("prediction", true)
+
+	if use_prediction or offline_mode:
+		# Move immediately on client without waiting for server round-trip
+		velocity = input_velocity
+		move_and_slide()
 	else:
+		# Prediction OFF: Wait for server echo before moving locally!
 		velocity = Vector2.ZERO
 
-	move_and_slide()
+	# --- OUT-OF-BOUNDS RESPAWN CHECK (4000x4000 arena centered at 0,0) ---
+	if abs(global_position.x) > 2050.0 or abs(global_position.y) > 2050.0:
+		print("[Bounds] Out of arena bounds! Respawning...")
+		respawn()
 
-	# Transmit current position to backend so other players can see movement
+	# Transmit current position (or desired destination if prediction is off)
 	if not offline_mode and NetworkManager.is_server_connected:
+		var send_pos := global_position
+		if not use_prediction:
+			# Send actual mouse destination so you actually travel across the map after the lag delay
+			send_pos = get_global_mouse_position()
+
 		NetworkManager.send_data({
 			"type": "update",
-			"x": global_position.x,
-			"y": global_position.y,
+			"x": send_pos.x,
+			"y": send_pos.y,
 			"score": score
 		})
 
@@ -146,20 +163,32 @@ func update_from_server(data: Dictionary) -> void:
 	if offline_mode:
 		return
 
-	# Only update position from server packets if this is a REMOTE player
+	var use_interp: bool = NetworkManager.admin_config.get("interpolation", true)
+	var use_pred: bool = NetworkManager.admin_config.get("prediction", true)
+
+	# 1. Remote players always update from server packets
 	if not is_local_player:
 		var target_pos := Vector2(data.x, data.y)
-
-		if NetworkManager.admin_config.interpolation:
+		if use_interp:
 			global_position = global_position.lerp(target_pos, 0.3)
 		else:
 			global_position = target_pos
+			
+		if data.has("score"):
+			set_score(int(data.score))
 		return
 
-	# --- LOCAL PLAYER SCORE HANDLING ---
-	# In Secured Mode, the server dictates the real score
+	# 2. Local player updates position from server ONLY when Client-Side Prediction is OFF
+	if not use_pred and data.has("x") and data.has("y"):
+		var server_pos := Vector2(data.x, data.y)
+		if use_interp:
+			global_position = global_position.lerp(server_pos, 0.3)
+		else:
+			global_position = server_pos
+
+	# 3. Secured Mode score enforcement ONLY (do not overwrite in 'client' mode!)
 	if NetworkManager.admin_config.authority == "server" and data.has("score"):
-		set_score(data.score)
+		set_score(int(data.score))
 
 func _update_player_scale() -> void:
 	var growth_factor := 1.0 + sqrt(float(max(score, 0)) / 25.0)
