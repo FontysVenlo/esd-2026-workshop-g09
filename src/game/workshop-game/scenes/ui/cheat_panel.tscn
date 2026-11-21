@@ -66,3 +66,16 @@ text = "1.0x"
 [node name="ZoomSlider" type="HSlider" parent="MarginContainer/VBoxContainer" unique_id=780893155]
 unique_name_in_owner = true
 layout_mode = 2
+
+[node name="HSeparator4" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=2147054922]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="AutoCollectorCheck" type="CheckButton" parent="MarginContainer/VBoxContainer" unique_id=862477132]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Auto Collector Macro"
+
+[connection signal="toggled" from="MarginContainer/VBoxContainer/AutoCollectorCheck" to="." method="_on_auto_collector_check_toggled"]

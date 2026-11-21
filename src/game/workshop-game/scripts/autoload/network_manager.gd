@@ -3,6 +3,9 @@ extends Node
 signal player_initialized(player_id: String, code: String)
 signal cheat_access_changed(has_access: bool)
 
+signal bot_detector_changed(enabled: bool)
+var has_bot_detector: bool = false
+
 var socket := WebSocketPeer.new()
 var server_url := "ws://127.0.0.1:3000"
 var is_server_connected := false
@@ -94,6 +97,15 @@ func _parse_message(raw_json: String) -> void:
 							CheatManager.set_esp(false)
 							CheatManager.set_speed_multiplier(1.0)
 							CheatManager.set_camera_zoom(1.0)
+							CheatManager.set_auto_collect(false)
+
+					# Block 4: Update Bot Detector state and toggle Auto Collector visibility
+					var new_bot_detector: bool = admin_config.get("botDetector", false)
+					if new_bot_detector != has_bot_detector:
+						has_bot_detector = new_bot_detector
+						bot_detector_changed.emit(has_bot_detector)
+						if not has_bot_detector:
+							CheatManager.set_auto_collect(false)
 
 				if data.has("players"):
 					players_state = data["players"]

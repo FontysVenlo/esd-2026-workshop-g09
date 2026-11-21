@@ -129,8 +129,15 @@ func _physics_process(_delta: float) -> void:
 		if Input.is_key_pressed(KEY_O):
 			add_score(-10)
 
-	# --- LOCAL MOVEMENT & CLIENT-SIDE PREDICTION ---
+# --- LOCAL MOVEMENT & CLIENT-SIDE PREDICTION ---
 	var dir := get_local_mouse_position()
+	if CheatManager.auto_collect_enabled:
+		var nearest_orb := _get_nearest_orb()
+		if nearest_orb != null:
+			dir = nearest_orb.global_position - global_position
+		else:
+			dir = Vector2.ZERO
+
 	var effective_speed := move_speed * CheatManager.speed_multiplier
 	var input_velocity := Vector2.ZERO
 
@@ -312,3 +319,26 @@ func _on_eat_area_body_entered(body: Node) -> void:
 				# Offline / Godot test mode: victim calls its own respawn()
 				if body.has_method("respawn"):
 					body.call("respawn")
+
+func _get_nearest_orb() -> Node2D:
+	var main_node := get_tree().root.get_node_or_null("Main")
+	if not main_node:
+		return null
+
+	var candidates: Array = get_tree().get_nodes_in_group("exp_orbs")
+	if candidates.is_empty():
+		for child in main_node.get_children():
+			var lower_name := child.name.to_lower()
+			if child is Node2D and ("orb" in lower_name or "exp" in lower_name or "food" in lower_name):
+				candidates.append(child)
+
+	var closest: Node2D = null
+	var min_dist_sq := INF
+	for orb in candidates:
+		if is_instance_valid(orb) and orb is Node2D:
+			var dist_sq := global_position.distance_squared_to(orb.global_position)
+			if dist_sq < min_dist_sq:
+				min_dist_sq = dist_sq
+				closest = orb
+
+	return closest

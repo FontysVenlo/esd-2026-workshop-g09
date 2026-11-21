@@ -9,6 +9,9 @@ extends PanelContainer
 @onready var zoom_slider: HSlider = %ZoomSlider
 @onready var zoom_value_label: Label = %ZoomValueLabel
 
+@onready var sep4: HSeparator = %HSeparator4
+@onready var auto_collect_check: CheckButton = %AutoCollectorCheck
+
 var _tween: Tween
 
 func _ready() -> void:
@@ -29,6 +32,10 @@ func _ready() -> void:
 	# Listen for live permission updates from the web dashboard via NetworkManager
 	if NetworkManager.has_signal("cheat_access_changed"):
 		NetworkManager.cheat_access_changed.connect(_on_cheat_access_changed)
+	
+	_on_bot_detector_changed(NetworkManager.has_bot_detector)
+	if not NetworkManager.bot_detector_changed.is_connected(_on_bot_detector_changed):
+		NetworkManager.bot_detector_changed.connect(_on_bot_detector_changed)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.is_echo():
@@ -74,3 +81,18 @@ func _on_zoom_changed(value: float) -> void:
 	var percentage := int(value * 100.0)
 	zoom_value_label.text = str(percentage) + "%"
 	CheatManager.set_camera_zoom(value)
+
+func _on_bot_detector_changed(enabled: bool) -> void:
+	sep4.visible = enabled
+	auto_collect_check.visible = enabled
+	
+	# Reset the toggle switch if admin turns Block 4 off
+	if not enabled:
+		auto_collect_check.button_pressed = false
+		CheatManager.set_auto_collect(false)
+	
+	# Shrink/expand CheatPanel container cleanly when the bottom row hides/shows
+	size = Vector2.ZERO
+
+func _on_auto_collector_check_toggled(toggled_on: bool) -> void:
+	CheatManager.set_auto_collect(toggled_on)

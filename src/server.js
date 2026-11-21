@@ -108,14 +108,17 @@ wss.on('connection', (ws) => {
 
     playerSockets[playerId] = ws;
     players[playerId] = {
-        id: playerId,
-        code: assignedCode,
-        x: 100,
-        y: 100,
-        target_x: 100,
-        target_y: 100,
-        score: 0,
-        lastInputTime: Date.now()
+    id: playerId,
+    code: assignedCode,
+    x: 100,
+    y: 100,
+    target_x: 100,
+    target_y: 100,
+    score: 0,
+    lastInputTime: Date.now(),
+    prevAngle: null,
+    rigidStreak: 0,
+    lastBotAlert: 0
     };
 
     console.log(`[Connect] Player joined: ${playerId} (Code: ${assignedCode})`);
@@ -136,6 +139,36 @@ wss.on('connection', (ws) => {
                 if (!player) return;
 
                 if (data.type === 'update') {
+                    // --- BLOCK 4: RIGID INPUT BOT DETECTOR ---
+                    // Must run BEFORE updating player.x / player.y so we compare old vs. new coordinates
+                    if (adminConfig.botDetector && data.x !== undefined && data.y !== undefined) {
+                        const dx = data.x - player.x;
+                        const dy = data.y - player.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+
+                        if (dist > 2) {
+                            const angle = Math.atan2(dy, dx);
+                            if (player.prevAngle !== null && Math.abs(angle - player.prevAngle) < 0.0001) {
+                                player.rigidStreak += 1;
+                            } else {
+                                player.rigidStreak = 0;
+                            }
+                            player.prevAngle = angle;
+
+                            if (player.rigidStreak >= 15 && Date.now() - player.lastBotAlert > 5000) {
+                                player.lastBotAlert = Date.now();
+                                console.log(`[BOT DETECTOR] Flagged Player ${player.code} (${playerId}) — Zero-variance robotic pathing!`);
+                                ws.send(JSON.stringify({
+                                    type: 'alert',
+                                    message: `[BOT DETECTOR] Player ${player.code} flagged for robotic straight-line movement!`
+                                }));
+                            }
+                        }
+                    } else {
+                        player.rigidStreak = 0;
+                        player.prevAngle = null;
+                    }
+
                     if (data.x !== undefined) {
                         player.x = data.x;
                         player.target_x = data.x;
@@ -150,7 +183,7 @@ wss.on('connection', (ws) => {
                         // EXPLOITABLE: Server blindly trusts whatever score the client sends
                         if (data.score !== undefined) player.score = data.score;
                     }
-                } 
+                }
                 else if (data.type === 'respawn') {
                     player.score = 0;
                     if (data.x !== undefined) player.x = data.x;

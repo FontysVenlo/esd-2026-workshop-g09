@@ -25,6 +25,10 @@ CheatManager="*uid://buay7nlmleqo8"
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
+[global_group]
+
+exp_orbs=""
+
 [physics]
 
 3d/physics_engine="Jolt Physics"
