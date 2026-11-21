@@ -48,7 +48,7 @@ func _ready() -> void:
 	else:
 		# For remote dummy players spawned across the network
 		if not player_id.is_empty():
-			name_label.text = player_id
+			set_player_code(player_id)
 		else:
 			name_label.text = ".."
 
@@ -59,6 +59,27 @@ func set_player_code(code_str: String) -> void:
 	player_id = code_str
 	if name_label:
 		name_label.text = player_id
+	if code_str != ".." and not code_str.is_empty():
+		_apply_color_from_code(code_str)
+
+func _apply_color_from_code(code_str: String) -> void:
+	if not mesh or not mesh.material:
+		return
+
+	# Duplicate the ShaderMaterial once per player so colors don't overwrite each other
+	if not mesh.material.has_meta("unique_instance"):
+		mesh.material = mesh.material.duplicate()
+		mesh.material.set_meta("unique_instance", true)
+
+	# Golden-ratio hash spreads 2-char codes evenly across bright Agar.io hues
+	var hue := fmod(float(abs(code_str.hash())) * 0.61803398875, 1.0)
+	var fill_color := Color.from_hsv(hue, 0.82, 0.95)
+	var outline_color := Color.from_hsv(hue, 0.90, 0.65)
+
+	var mat := mesh.material as ShaderMaterial
+	if mat:
+		mat.set_shader_parameter("circle_color", fill_color)
+		mat.set_shader_parameter("border_color", outline_color)
 
 # --- SCORE MANAGEMENT LOGIC ---
 func set_score(new_score: int) -> void:
@@ -79,15 +100,18 @@ func set_score(new_score: int) -> void:
 		if main_node and main_node.has_method("update_score_hud"):
 			main_node.update_score_hud(score)
 
-func add_score(amount: int) -> void:
+func add_score(amount: int, orb_id: int = -1) -> void:
 	set_score(score + amount)
 	
 	# Notify the server when eating an EXP orb (1–5 pts) so server-authoritative mode counts it
 	if is_local_player and not offline_mode and NetworkManager.is_server_connected and amount > 0 and amount < 10:
-		NetworkManager.send_data({
+		var payload := {
 			"type": "eat_orb",
 			"amount": amount
-		})
+		}
+		if orb_id >= 0:
+			payload["orb_id"] = orb_id
+		NetworkManager.send_data(payload)
 
 func generate_random_2char_code() -> String:
 	var letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -185,6 +209,9 @@ func update_from_server(data: Dictionary) -> void:
 
 	# 1. Remote players always update from server packets
 	if not is_local_player:
+		if data.has("code") and str(data.code) != player_id:
+			set_player_code(str(data.code))
+
 		var target_pos := Vector2(data.x, data.y)
 		if use_interp:
 			global_position = global_position.lerp(target_pos, 0.3)
@@ -276,7 +303,7 @@ func respawn() -> void:
 	# 1. Reset score to baseline
 	set_score(0)
 	
-	# 2. Teleport to a random position within grid bounds (e.g., +/- 400px)
+	# 2. Teleport to a random position within grid bounds (e.g., +/- 1000px)
 	var spawn_x := randf_range(-1000.0, 1000.0)
 	var spawn_y := randf_range(-1000.0, 1000.0)
 	global_position = Vector2(spawn_x, spawn_y)
@@ -303,12 +330,12 @@ func _on_eat_area_body_entered(body: Node) -> void:
 	if body is CharacterBody2D and "score" in body:
 		var target_score: int = int(body.get("score"))
 
-		# EAT RULE: Your score must be strictly greater than target player's score
+		# EAT RULE 1: You are larger than the other player -> You eat them
 		if self.score > target_score:
 			print("[Game Mechanics] You ate player: ", body.name, " (Target Score: ", target_score, ")")
 			
-			# Reward: Gain 50% of victim's score (minimum 10 points)
-			var score_gained: int = max(10, int(float(target_score) * 0.5))
+			# Reward: 1 point if victim has 0 score, otherwise 100% of victim's score
+			var score_gained: int = maxi(1, target_score)
 			add_score(score_gained)
 
 			# Network Mode vs Offline Testing Mode
@@ -322,6 +349,17 @@ func _on_eat_area_body_entered(body: Node) -> void:
 				# Offline / Godot test mode: victim calls its own respawn()
 				if body.has_method("respawn"):
 					body.call("respawn")
+
+		# EAT RULE 2: You are smaller than the other player -> You get eaten immediately
+		# (Ensures eating works instantly even if the larger player's browser tab is inactive/throttled)
+		elif target_score > self.score:
+			print("[Game Mechanics] You were eaten by: ", body.name, " (Eater Score: ", target_score, ")")
+			if not offline_mode and NetworkManager.is_server_connected:
+				NetworkManager.send_data({
+					"type": "got_eaten",
+					"eater_id": str(body.get("player_id"))
+				})
+			respawn()
 
 func _get_nearest_orb() -> Node2D:
 	var main_node := get_tree().root.get_node_or_null("Main")

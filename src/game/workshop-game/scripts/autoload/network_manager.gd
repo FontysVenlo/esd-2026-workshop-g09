@@ -2,8 +2,10 @@ extends Node
 
 signal player_initialized(player_id: String, code: String)
 signal cheat_access_changed(has_access: bool)
-
 signal bot_detector_changed(enabled: bool)
+signal orbs_synced(orbs_list: Array)
+signal orb_moved(orb_data: Dictionary)
+
 var has_bot_detector: bool = false
 
 var socket := WebSocketPeer.new()
@@ -29,6 +31,7 @@ var admin_config := {
 }
 
 var players_state := {}
+var initial_orbs: Array = []
 
 func _ready() -> void:
 	# Automatically match browser protocol (ws vs wss) and host on Web exports
@@ -91,6 +94,10 @@ func _parse_message(raw_json: String) -> void:
 				# Emit signal so Main.gd or Player.gd can set the local player code label
 				player_initialized.emit(my_player_id, my_code)
 
+				if data.has("orbs"):
+					initial_orbs = data["orbs"]
+					orbs_synced.emit(initial_orbs)
+
 			"state":
 				if data.has("config"):
 					admin_config = data["config"]
@@ -119,11 +126,20 @@ func _parse_message(raw_json: String) -> void:
 				if data.has("players"):
 					players_state = data["players"]
 
+			"orb_moved":
+				if data.has("orb"):
+					orb_moved.emit(data["orb"])
+
 			"eaten":
 				print("[Network] You were eaten! Respawning...")
 				var local_p := get_tree().root.get_node_or_null("Main/Player")
 				if local_p and local_p.has_method("respawn"):
 					local_p.call("respawn")
+
+			"ate_player":
+				var local_p := get_tree().root.get_node_or_null("Main/Player")
+				if local_p and local_p.has_method("set_score"):
+					local_p.set_score(local_p.score + int(data.get("gained", 1)))
 
 			"alert":
 				print("[SERVER ALERT] ", data["message"])

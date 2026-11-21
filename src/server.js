@@ -1,14 +1,13 @@
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
+const compression = require('compression');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const compression = require('compression');
 app.use(compression());
-
 app.use(express.json());
 
 // --- BASIC AUTHENTICATION MIDDLEWARE ---
@@ -87,6 +86,23 @@ const availableCodes = createCodePool();
 let players = {};
 const playerSockets = {};
 
+// --- SHARED SERVER-SYNCED EXP ORBS ---
+const MAX_ORBS = 80;
+let orbs = [];
+
+function createRandomOrb(id) {
+    return {
+        id: id,
+        x: Math.round((Math.random() - 0.5) * 3800),
+        y: Math.round((Math.random() - 0.5) * 3800),
+        val: 1
+    };
+}
+
+for (let i = 0; i < MAX_ORBS; i++) {
+    orbs.push(createRandomOrb(i));
+}
+
 // --- INBOUND NETWORK / DDoS LAG SIMULATOR (Client -> Server) ---
 function processWithNetworkLag(callback) {
     // 1. Inbound Packet Loss (drops player updates before server sees them)
@@ -108,20 +124,23 @@ function processWithNetworkLag(callback) {
 wss.on('connection', (ws) => {
     const playerId = Math.random().toString(36).substring(2, 9);
     const assignedCode = availableCodes.length > 0 ? availableCodes.pop() : "??";
+    const startX = Math.round((Math.random() - 0.5) * 2000);
+    const startY = Math.round((Math.random() - 0.5) * 2000);
 
     playerSockets[playerId] = ws;
     players[playerId] = {
-    id: playerId,
-    code: assignedCode,
-    x: 100,
-    y: 100,
-    target_x: 100,
-    target_y: 100,
-    score: 0,
-    lastInputTime: Date.now(),
-    prevAngle: null,
-    rigidStreak: 0,
-    lastBotAlert: 0
+        id: playerId,
+        code: assignedCode,
+        x: startX,
+        y: startY,
+        target_x: startX,
+        target_y: startY,
+        score: 0,
+        lastInputTime: Date.now(),
+        lastEatenTime: 0,
+        prevAngle: null,
+        rigidStreak: 0,
+        lastBotAlert: 0
     };
 
     console.log(`[Connect] Player joined: ${playerId} (Code: ${assignedCode})`);
@@ -129,7 +148,8 @@ wss.on('connection', (ws) => {
     ws.send(JSON.stringify({
         type: 'init',
         playerId: playerId,
-        code: assignedCode
+        code: assignedCode,
+        orbs: orbs
     }));
 
     ws.on('message', (message) => {
@@ -193,15 +213,16 @@ wss.on('connection', (ws) => {
                     if (data.y !== undefined) player.y = data.y;
                 } 
                 else if (data.type === 'player_eaten') {
-                    // Find victim by their 2-char code (player_id in Godot)
+                    // Larger player reports eating a smaller player
                     const victim = Object.values(players).find(p => p.code === data.victim_id);
-                    if (victim) {
+                    if (victim && Date.now() - (victim.lastEatenTime || 0) > 1000) {
                         if (adminConfig.authority === 'client' || player.score > victim.score) {
-                            const gained = Math.max(10, Math.floor(victim.score * 0.5));
+                            victim.lastEatenTime = Date.now();
+                            const gained = Math.max(1, victim.score);
                             player.score += gained;
                             victim.score = 0;
-                            victim.x = (Math.random() - 0.5) * 800;
-                            victim.y = (Math.random() - 0.5) * 800;
+                            victim.x = Math.round((Math.random() - 0.5) * 2000);
+                            victim.y = Math.round((Math.random() - 0.5) * 2000);
 
                             // Notify the victim's client directly so it triggers respawn()
                             const victimWs = playerSockets[victim.id];
@@ -211,10 +232,44 @@ wss.on('connection', (ws) => {
                         }
                     }
                 }
+                else if (data.type === 'got_eaten') {
+                    // Smaller player reports getting eaten (handles inactive/throttled eater browser tabs)
+                    const eater = Object.values(players).find(p => p.code === data.eater_id);
+                    if (eater && Date.now() - (player.lastEatenTime || 0) > 1000) {
+                        if (adminConfig.authority === 'client' || eater.score > player.score) {
+                            player.lastEatenTime = Date.now();
+                            const gained = Math.max(1, player.score);
+                            eater.score += gained;
+                            player.score = 0;
+                            player.x = Math.round((Math.random() - 0.5) * 2000);
+                            player.y = Math.round((Math.random() - 0.5) * 2000);
+
+                            // Notify eater so client-authoritative mode doesn't overwrite the reward
+                            const eaterWs = playerSockets[eater.id];
+                            if (eaterWs && eaterWs.readyState === WebSocket.OPEN) {
+                                eaterWs.send(JSON.stringify({ type: 'ate_player', gained: gained }));
+                            }
+                        }
+                    }
+                }
                 else if (data.type === 'eat_orb') {
                     if (adminConfig.authority === 'server') {
                         const gain = Math.min(Math.max(Number(data.amount) || 1, 1), 5);
                         player.score += gain;
+                    }
+
+                    if (data.orb_id !== undefined) {
+                        const orbId = Number(data.orb_id);
+                        const idx = orbs.findIndex(o => o.id === orbId);
+                        if (idx !== -1) {
+                            orbs[idx] = createRandomOrb(orbId);
+                            const msg = JSON.stringify({ type: 'orb_moved', orb: orbs[idx] });
+                            wss.clients.forEach((client) => {
+                                if (client.readyState === WebSocket.OPEN) {
+                                    client.send(msg);
+                                }
+                            });
+                        }
                     }
                 }
             });

@@ -11,15 +11,54 @@ extends Node2D
 @onready var exp_container: Node2D = %ExpContainer
 
 var remote_players: Dictionary = {}
+var synced_orbs: Dictionary = {}
 
 func _ready() -> void:
 	randomize()
-	spawn_initial_exp()
+	NetworkManager.orbs_synced.connect(_on_orbs_synced)
+	NetworkManager.orb_moved.connect(_on_orb_moved)
+
+	var local_player := get_node_or_null("Player")
+	if local_player and local_player.get("offline_mode"):
+		spawn_initial_exp()
+	elif not NetworkManager.initial_orbs.is_empty():
+		_on_orbs_synced(NetworkManager.initial_orbs)
+
+func _on_orbs_synced(orbs_list: Array) -> void:
+	print("[Main] _on_orbs_synced called with ", orbs_list.size(), " orbs | scene=", exp_orb_scene)
+	if not exp_orb_scene:
+		print("[Main] Warning: Exp orb scene not assigned in Inspector!")
+		return
+
+	# Clear any existing orbs (prevents duplicates on reconnect)
+	for child in exp_container.get_children():
+		child.queue_free()
+	synced_orbs.clear()
+
+	for o in orbs_list:
+		var orb := exp_orb_scene.instantiate()
+		var id := int(o.get("id", -1))
+		orb.set("orb_id", id)
+		orb.set("score_value", int(o.get("val", 1)))
+		orb.global_position = Vector2(float(o.get("x", 0)), float(o.get("y", 0)))
+		exp_container.add_child(orb)
+		synced_orbs[id] = orb
+
+func _on_orb_moved(orb_data: Dictionary) -> void:
+	var id := int(orb_data.get("id", -1))
+	if synced_orbs.has(id) and is_instance_valid(synced_orbs[id]):
+		var orb: Area2D = synced_orbs[id]
+		orb.global_position = Vector2(float(orb_data.get("x", 0)), float(orb_data.get("y", 0)))
+		orb.visible = true
+		orb.add_to_group("exp_orbs")
+		orb.set_deferred("monitoring", true)
 
 func _process(_delta: float) -> void:
 	if not NetworkManager.is_server_connected:
 		return
-
+	if synced_orbs.is_empty() and not NetworkManager.initial_orbs.is_empty():
+		_on_orbs_synced(NetworkManager.initial_orbs)
+		
 	var server_players: Dictionary = NetworkManager.players_state
 
 	# 1. Sync local player from server (handles Prediction OFF & Server Authority / Eaten resets)
@@ -41,10 +80,15 @@ func _process(_delta: float) -> void:
 			var new_p: Node2D = player_scene.instantiate()
 			new_p.set("is_local_player", false)
 			new_p.set("offline_mode", false)
-			if new_p.has_method("set_player_code"):
-				new_p.call("set_player_code", str(p_data.get("code", "??")))
+			new_p.add_to_group("players")
 			new_p.global_position = Vector2(float(p_data.get("x", 100)), float(p_data.get("y", 100)))
 			add_child(new_p)
+
+			if new_p.has_node("Camera2D"):
+				new_p.get_node("Camera2D").enabled = false
+			if new_p.has_method("set_player_code"):
+				new_p.call("set_player_code", str(p_data.get("code", "??")))
+
 			remote_players[id] = new_p
 		else:
 			var existing_p: Node = remote_players[id]
@@ -81,9 +125,3 @@ func spawn_single_exp() -> void:
 func update_score_hud(new_score: int) -> void:
 	if score_label:
 		score_label.text = "Score: " + str(new_score)
-
-# TODO REMOVE THIS LATER ON!
-func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.is_echo():
-		if event.keycode == KEY_ESCAPE:
-			get_tree().quit()
