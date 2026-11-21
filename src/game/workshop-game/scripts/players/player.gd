@@ -78,6 +78,13 @@ func set_score(new_score: int) -> void:
 
 func add_score(amount: int) -> void:
 	set_score(score + amount)
+	
+	# Notify the server when eating an EXP orb (1–5 pts) so server-authoritative mode counts it
+	if is_local_player and not offline_mode and NetworkManager.is_server_connected and amount > 0 and amount < 10:
+		NetworkManager.send_data({
+			"type": "eat_orb",
+			"amount": amount
+		})
 
 func generate_random_2char_code() -> String:
 	var letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"

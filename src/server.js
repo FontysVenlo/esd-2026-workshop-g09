@@ -175,6 +175,12 @@ wss.on('connection', (ws) => {
                         }
                     }
                 }
+                else if (data.type === 'eat_orb') {
+                    if (adminConfig.authority === 'server') {
+                        const gain = Math.min(Math.max(Number(data.amount) || 1, 1), 5);
+                        player.score += gain;
+                    }
+                }
             });
         } catch (err) {
             console.error('Invalid message format', err);
