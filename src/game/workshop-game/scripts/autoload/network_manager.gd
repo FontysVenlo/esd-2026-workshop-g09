@@ -10,6 +10,8 @@ var socket := WebSocketPeer.new()
 var server_url := "ws://127.0.0.1:3000"
 var is_server_connected := false
 
+var reconnect_timer: float = 0.0
+
 var my_player_id: String = ""
 var my_code: String = ""
 
@@ -29,11 +31,12 @@ var admin_config := {
 var players_state := {}
 
 func _ready() -> void:
-	# Automatically match the browser's host (localhost vs 127.0.0.1) on Web exports
+	# Automatically match browser protocol (ws vs wss) and host on Web exports
 	if OS.has_feature("web"):
-		var host = JavaScriptBridge.eval("window.location.host")
-		if host and not str(host).is_empty():
-			server_url = "ws://" + str(host)
+		var protocol: String = str(JavaScriptBridge.eval("window.location.protocol === 'https:' ? 'wss://' : 'ws://'"))
+		var host: String = str(JavaScriptBridge.eval("window.location.host"))
+		if not host.is_empty():
+			server_url = protocol + host
 
 	socket.inbound_buffer_size = 65536 * 4
 	socket.outbound_buffer_size = 65536 * 4
@@ -57,9 +60,15 @@ func _process(_delta: float) -> void:
 				_parse_message(message)
 			count -= 1
 
-	elif state == WebSocketPeer.STATE_CLOSED and is_server_connected:
-		print("[Network] Disconnected from backend.")
-		is_server_connected = false
+	elif state == WebSocketPeer.STATE_CLOSED:
+		if is_server_connected:
+			print("[Network] Disconnected from backend. Reconnecting...")
+			is_server_connected = false
+
+		reconnect_timer += _delta
+		if reconnect_timer >= 2.0:
+			reconnect_timer = 0.0
+			socket.connect_to_url(server_url)
 
 func send_data(payload: Dictionary) -> void:
 	if socket.get_ready_state() == WebSocketPeer.STATE_OPEN:

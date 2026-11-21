@@ -6,6 +6,9 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+const compression = require('compression');
+app.use(compression());
+
 app.use(express.json());
 
 // --- BASIC AUTHENTICATION MIDDLEWARE ---
@@ -250,9 +253,21 @@ setInterval(() => {
         }
     }
 
+    const publicPlayers = {};
+    for (const id in players) {
+        const p = players[id];
+        publicPlayers[id] = {
+            id: p.id,
+            code: p.code,
+            x: Math.round(p.x),
+            y: Math.round(p.y),
+            score: p.score
+        };
+    }
+
     const payload = JSON.stringify({
         type: 'state',
-        players: players,
+        players: publicPlayers,
         config: adminConfig
     });
 

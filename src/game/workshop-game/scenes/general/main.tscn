@@ -18,11 +18,6 @@ player_scene = ExtResource("2_xpm1u")
 position = Vector2(1912, 315)
 is_local_player = true
 
-[node name="Player2" parent="." unique_id=1757004060 instance=ExtResource("2_xpm1u")]
-visible = false
-position = Vector2(938, 816)
-offline_mode = true
-
 [node name="Void" parent="." unique_id=976362442 instance=ExtResource("3_gbbem")]
 offset_left = -6576.0
 offset_top = -4501.0

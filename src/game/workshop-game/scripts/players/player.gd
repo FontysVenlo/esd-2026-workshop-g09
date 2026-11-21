@@ -39,6 +39,9 @@ func _ready() -> void:
 		# Connect to CheatManager signals
 		CheatManager.camera_zoom_changed.connect(_on_cheat_zoom_changed)
 		CheatManager.esp_toggled.connect(_on_esp_toggled)
+		
+		# Randomize starting position and initialize HUD score on frame 1
+		respawn()
 			
 		# Initialize the UI score display on frame 1
 		set_score(score)
